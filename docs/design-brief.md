@@ -35,12 +35,14 @@ the art.
 | | Columns | Rows |
 | --- | --- | --- |
 | Current art (replaceable) | 26 | 12 |
-| **Recommended** | **36 to 40** | **12 to 16** |
+| Upstream precedent (their rose) | 37 | 17 |
+| **Recommended** | **36 to 40** | **14 to 17** |
 | Maximum | 44 | 18 |
 | Minimum | 24 | 10 |
 
 Why the recommendation: at 36 columns the head is legible; beyond 44 the banner starts pushing
-the transcript off screen at common terminal heights.
+the transcript off screen at common terminal heights. The upstream rose occupies 37x17, so a
+Fenrir wolf of the same footprint is well within precedent.
 
 ### Width budget
 
@@ -60,6 +62,7 @@ The wordmark is 35 columns wide (redesignable, see below). So:
 ## Delivery format
 
 **Recommended: two grids.** Deliver the art and a same-size zone map, character for character.
+This is required whenever the art uses Braille or more than one shade per glyph.
 
 ```
 ART (36x14)                       ZONES (36x14)
@@ -104,10 +107,29 @@ Corners:    ◢ ◣ ◤ ◥ ◸ ◹ ◺ ◿
 Geometric:  ● ○ ◆ ◇ ▲ ▼ ◀ ▶
 ```
 
-**Tip:** half and quadrant blocks (`▀ ▄ ▌ ▐ ▖ ▗ ▘ ▝ ▙ ▟ ▛ ▜ ▚ ▞`) give *sub-cell* resolution.
-A 36x14 grid drawn with them behaves like 72x28 and produces crisp diagonals instead of a
-staircase — that is the difference between a legible wolf head and a blob. Use plain `█` only
-for solid masses.
+### Resolution: the technique that decides everything
+
+This is the difference between a legible wolf and a blob, and it is not about artistic skill —
+it is about how many dots the design gets inside one terminal cell.
+
+| Technique | Dots per cell | A 36x16 grid behaves like | Safety |
+| --- | --- | --- | --- |
+| `█` solid blocks | 1 | 36x16 | universal |
+| Half and quadrant blocks `▀ ▄ ▌ ▐ ▖ ▗ ▘ ▝ ▙ ▟ ▛ ▜ ▚ ▞` | 2 to 4 | up to 72x32 | universal |
+| **Braille patterns** `U+2800` to `U+28FF` | **8** (a 2x4 dot matrix) | **72x64** | proven on this machine |
+
+**Braille is the technique the upstream rose uses, and it is why it reads as a rose.** It is
+37 columns wide and drawn entirely from the Braille block (104 distinct glyphs, most used
+`⣿ ⣀ ⠈ ⠛ ⠉`). See `docs/reference/upstream-rose-example.md` for the full art, the measured
+glyph inventory, and the caveats. The current Fenrir wolf is drawn with plain `█`, so it gets
+one dot per cell: that is the diagnosis of its weak look, not the choice of subject.
+
+If Braille is used, the zone map is **mandatory**: a Braille glyph is a density, not a meaning,
+so color cannot be derived from the character. The designer still cannot pick arbitrary colors
+per dot, only per zone, but eight-zone shading is more than enough for a metal-and-fire wolf.
+
+Recommendation: **half and quadrant blocks as the safe baseline, Braille if the extra
+resolution is needed for the muzzle and the eye.**
 
 ## What must appear
 
