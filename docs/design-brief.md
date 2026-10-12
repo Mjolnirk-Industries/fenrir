@@ -133,7 +133,9 @@ resolution is needed for the muzzle and the eye.**
 
 ## What must appear
 
-A **geometric wolf head in profile, facing right**. Specifically legible:
+A **geometric wolf head in profile, facing left**. The delivered art is the authority on
+orientation: an earlier revision of this brief said "facing right" and it was wrong. Specifically
+legible:
 
 1. Two pointed ears, clearly separated by a valley.
 2. A muzzle projecting to the right, distinct from the skull mass.
@@ -148,6 +150,19 @@ It must read as a wolf at the delivered size and **without color** (test it in p
 `FENRIR` in block letters, currently 35 columns by 5 rows: 5x5 letters with 1-column gaps.
 If you redesign it, stay within 46 columns and 5 to 7 rows, and keep the same two-grid delivery
 option. Same character rules.
+
+## Delivered art
+
+The first accepted delivery lives in `art/`:
+
+| File | Size | Notes |
+| --- | --- | --- |
+| `art/sigil.txt` | 40 x 15 | Braille only; the last row is short and is padded on load |
+| `art/sigil.zones.txt` | 40 x 15 | Zone letters, aligned cell for cell with the sigil |
+| `art/wordmark.txt` | 35 x 5 | Block letters, no zones (painted as a single color) |
+
+Zones used: `D` 116 cells, `E` 84, `B` 30. Effective resolution 80 x 60 dots. Measured zero art
+cells without a zone and zero painted zones without a glyph.
 
 ## The intro animation
 
