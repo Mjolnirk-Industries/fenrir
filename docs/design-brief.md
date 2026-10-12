@@ -171,8 +171,9 @@ The animation runs **once, at startup, and then stops for good** — no continuo
 - 32 frames at 40 ms each: about **1.3 seconds**.
 - Frame budget is fixed; the art does not need to be animated by the designer.
 
-What happens in those frames today: the art is revealed bottom-up (it rises) while the opacity
-ramps in over the first third.
+What happens in those frames today: the art is revealed bottom-up (it rises), and while the
+reveal is running the whole banner is painted at 55 percent brightness; at the freeze tick it
+switches to full brightness. There is no opacity ramp in between.
 
 What the designer **can** deliver instead, if they want a real intro:
 
@@ -201,8 +202,8 @@ Nine fields, always in this order:
 | `TOOLS:` | `N custom` | registered custom tools |
 
 Layout: two column pairs at 122 terminal columns and wider, a single column below that. Labels
-are steel, values are ash, and the git branch is the accent. The label column is padded to the
-widest label (`EXTENSIONS:`), which sets the minimum usable width.
+are steel, values are ash, and the git branch is ember. The label column is padded to the widest
+label (`EXTENSIONS:`), which sets the minimum usable width.
 
 ## Acceptance checklist
 

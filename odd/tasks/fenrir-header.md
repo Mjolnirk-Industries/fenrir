@@ -100,18 +100,55 @@ Four mechanisms, in order of confidence:
 
 ## Tasks
 
-- [ ] **T1** Scaffold: `package.json` with `pi.extensions`, README, MIT LICENSE, `.gitignore`,
+- [x] **T1** Scaffold: `package.json` with `pi.extensions`, README, MIT LICENSE, `.gitignore`,
   this document.
-- [ ] **T2** `lib/width.ts` + `lib/collect.ts` with tests: each of the nine fields, including
+- [x] **T2** `lib/width.ts` + `lib/collect.ts` with tests: each of the nine fields, including
   failure paths (absent `mcp.json`, absent `settings.json`, not a git repo).
-- [ ] **T3** `lib/panel.ts` with tests: wide (>=122) and narrow layouts, label alignment,
+- [x] **T3** `lib/panel.ts` with tests: wide (>=122) and narrow layouts, label alignment,
   value truncation, empty/missing values.
-- [ ] **T4** `lib/sigil.ts` + `lib/anim.ts` with tests: art shape, stroke reveal frames,
+- [x] **T4** `lib/sigil.ts` + `lib/anim.ts` with tests: art shape, stroke reveal frames,
   freeze threshold, every rendered line within a single terminal cell per character.
-- [ ] **T5** `extensions/fenrir.ts`: wiring, deferred install, disposal watchdog, commands,
+- [x] **T5** `extensions/fenrir.ts`: wiring, deferred install, disposal watchdog, commands,
   cleanup, escape hatch.
-- [ ] **T6** Theme: port the verified `themes/Fenrir.json` and register it in the package.
-- [ ] **T7** Empirical race verification on a real terminal, plus README install/verify steps.
+- [x] **T6** Theme: port the verified `themes/Fenrir.json` and register it in the package.
+- [x] **T7** Empirical race verification on a real terminal, plus README install/verify steps.
+- [x] **T8** Replace the placeholder art with the delivered Braille sigil and its zone map, and
+  paint the banner from the zone grid instead of from the character.
+- [x] **T9** Document installation, verification and customization: `README.md` and
+  `docs/customizing.md`.
+
+## Progress notes
+
+**T7 is confirmed empirically.** The owner loaded the extension in a real terminal with
+`pi --extension ./extensions/fenrir.ts` and the Fenrir banner appeared in place of the upstream
+one. The hypothesis this whole design rests on — that the upstream banner installs itself from a
+`setTimeout` inside `session_start`, so a later deferred install wins the single header slot —
+holds in practice, not just in the injected tests.
+
+**T8 replaced the placeholder art.** The owner delivered a 40x15 sigil in Braille patterns
+(U+2800–U+28FF) plus a same-size zone grid: 80x60 effective dots against the 26x12 cells of the
+placeholder, which is what made the first wolf read as a blob. Measured cell for cell: zero art
+cells without a zone, zero painted zones without a glyph. Because a Braille glyph encodes density
+and not meaning, color had to move from the character to the zone grid; `zoneOfChar` is gone.
+
+**Corrections found while documenting.** Three of the project statements were wrong and are now
+fixed:
+
+- The panel paints the git branch with zone `E` (ember), not `D` (wolf orange). The panel uses
+  `A` for labels, `B` for values and `E` for the branch.
+- The intro does not ramp opacity across the first third. `opacityFor` is exported and tested but
+  nothing calls it: the banner paints at a constant 55 percent brightness until the freeze tick,
+  then at full brightness. Either the wiring should use it or the helper should go; leaving a
+  tested function that no caller uses is a defect, not documentation.
+- The first art brief said the wolf faces right. It faces left, as the delivered art and the
+  original vector both do.
+
+**Open decisions.** A 44x16 wide sigil variant selected by available width (the owner offered
+one); using zones `A` and `C`, currently valid but unused by the art, for a colder highlight and
+for shadow; hardening the `AGENTS` count, which cannot tell a directory from a file through the
+injected `readdir` contract; and installing the package for real with
+`pi install git:github.com/Mjolnirk-Industries/fenrir` instead of loading it with `--extension`,
+which is the path that also exercises `art/`, `themes/` and package-relative path resolution.
 
 ## Risks
 
