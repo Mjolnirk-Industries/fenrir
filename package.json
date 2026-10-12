@@ -1,0 +1,49 @@
+{
+  "name": "fenrir",
+  "version": "0.1.0",
+  "description": "A Pi package that takes over gentle-shell's startup header: custom banner art plus the runtime info panel, without patching upstream.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mjolnirk-Industries",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mjolnirk-Industries/fenrir.git"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi-coding-agent",
+    "tui",
+    "banner",
+    "header",
+    "gentle-shell",
+    "fenrir"
+  ],
+  "files": [
+    "extensions",
+    "lib",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/fenrir.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    }
+  }
+}
