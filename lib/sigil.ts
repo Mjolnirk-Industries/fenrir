@@ -1,74 +1,103 @@
 // Pure banner art for the Fenrir header.
 //
-// Two fixed blocks -- the wolf sigil and the FENRIR wordmark -- plus a pure
-// composer. The art is plain text: every line is padded to the block width and
-// contains only characters understood by zoneOfChar, so color is decided per
-// character by the renderer and never baked into the lines. Keep the blocks as
-// readable line literals so they stay trivial to tweak visually.
+// The art is delivered as plain text files under art/ and parsed here into
+// blocks, plus a zone map that assigns a color zone to every cell. The art
+// itself carries no color: Braille glyphs encode density, not meaning, so the
+// zone map is the only source of color. This module is deliberately
+// file-system free -- the extension reads the files and hands the text over --
+// so it stays trivially testable.
 
 export interface ArtBlock {
-  /** Plain lines. Every line must be padded to exactly `width` code points. */
+  /** Plain lines. Every line is padded with spaces to exactly `width` code points. */
   lines: string[];
   width: number;
   height: number;
 }
 
-/** Color zone for one art character. */
-export type ArtZone = "empty" | "contour" | "shade" | "ink" | "eye";
-
-const ZONE_BY_CHAR: ReadonlyMap<string, ArtZone> = new Map<string, ArtZone>([
-  [" ", "empty"],
-  ["█", "contour"],
-  ["▀", "contour"],
-  ["▄", "contour"],
-  ["▌", "contour"],
-  ["▐", "contour"],
-  ["▒", "shade"],
-  ["▓", "ink"],
-  ["●", "eye"],
-]);
-
-/** Map one art character to its color zone. Throws on anything else. */
-export function zoneOfChar(ch: string): ArtZone {
-  const zone = ZONE_BY_CHAR.get(ch);
-  if (zone !== undefined) return zone;
-  throw new TypeError(`zoneOfChar: unsupported art character ${JSON.stringify(ch)}`);
+export interface ZoneMap {
+  /** Zone letters, padded with `.` to exactly `width` code points per row. */
+  rows: string[];
+  width: number;
+  height: number;
 }
 
-// Wolf head in profile, facing right: two pointed ears, a rounded skull, a
-// dark muzzle jutting right on the eye line, and a receding jaw. 26 x 12.
-// `█` is the contour, `▓` the dark muzzle, `●` the eye.
-export const WOLF_SIGIL: ArtBlock = {
-  width: 26,
-  height: 12,
-  lines: [
-    "    █      █              ",
-    "   ███    ███             ",
-    "  █████  █████            ",
-    " ███████████████          ",
-    " █████████████████        ",
-    " ███████●███████          ",
-    " ██████████▓▓▓▓▓▓▓▓▓▓▓▓   ",
-    "  █████████▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓",
-    "  █████████████████████   ",
-    "    ████████████████      ",
-    "      ███████████         ",
-    "        ███████           ",
-  ],
-};
+const ART_PAD = " ";
+const ZONE_PAD = ".";
 
-// FENRIR in a 5x5 block font, letters separated by one blank column. 35 x 5.
-export const FENRIR_WORDMARK: ArtBlock = {
-  width: 35,
-  height: 5,
-  lines: [
-    "█████ █████ █   █ ████  █████ ████ ",
-    "█     █     ██  █ █   █   █   █   █",
-    "████  ████  █ █ █ ████    █   ████ ",
-    "█     █     █  ██ █  █    █   █  █ ",
-    "█     █████ █   █ █   █ █████ █   █",
-  ],
-};
+/** Split a grid on LR or CRLF line endings and drop exactly one trailing empty row. */
+function splitGrid(text: string): string[] {
+  const rows = text.split(/\r?\n/);
+  if (rows.length > 0 && rows[rows.length - 1] === "") rows.pop();
+  return rows;
+}
+
+function widest(rows: string[]): number {
+  return rows.reduce((max, row) => Math.max(max, Array.from(row).length), 0);
+}
+
+function padRight(row: string, width: number, pad: string): string {
+  const current = Array.from(row).length;
+  return current >= width ? row : row + pad.repeat(width - current);
+}
+
+/**
+ * Parse one art grid. Rows are split on `\r?\n`, a single trailing empty line is
+ * dropped, `width` is the maximum code-point count, and every short row is
+ * padded with spaces. A short last row therefore never shrinks the block.
+ */
+export function parseArtBlock(text: string): ArtBlock {
+  const rows = splitGrid(text);
+  const width = widest(rows);
+  const lines = rows.map((row) => padRight(row, width, ART_PAD));
+  return { lines, width, height: lines.length };
+}
+
+/**
+ * Parse one zone map. Behaves like `parseArtBlock`, but pads short rows with `.`
+ * (unpainted) so a trailing row with no color reads as background.
+ */
+export function parseZoneMap(text: string): ZoneMap {
+  const rows = splitGrid(text);
+  const width = widest(rows);
+  const padded = rows.map((row) => padRight(row, width, ZONE_PAD));
+  return { rows: padded, width, height: padded.length };
+}
+
+const VALID_ZONE_CHARACTERS = new Set(["A", "B", "C", "D", "E", "."]);
+
+/**
+ * Verify a parsed zone map belongs to a parsed art block. Throws a `TypeError`
+ * that names the offending character and its 1-based row and column when the
+ * row counts differ, a zone row contains a character outside `A B C D E .`, or a
+ * zone row is wider than the art.
+ *
+ * A zone row *narrower* than the art is explicitly tolerated: the cells past its
+ * end have no zone and are left unpainted by the renderer.
+ */
+export function assertZoneMapAligned(art: ArtBlock, zones: ZoneMap): void {
+  if (zones.height !== art.height) {
+    throw new TypeError(
+      `zone map has ${zones.height} row(s) but the art has ${art.height}`,
+    );
+  }
+
+  for (let row = 0; row < zones.height; row++) {
+    const cells = Array.from(zones.rows[row]);
+    if (cells.length > art.width) {
+      throw new TypeError(
+        `zone row ${row + 1} is ${cells.length} column(s) wide but the art is ${art.width}`,
+      );
+    }
+    for (let col = 0; col < cells.length; col++) {
+      const ch = cells[col];
+      if (!VALID_ZONE_CHARACTERS.has(ch)) {
+        throw new TypeError(
+          `unsupported zone character ${JSON.stringify(ch)} at row ${row + 1}, column ${col + 1}`,
+        );
+      }
+    }
+  }
+}
 
 export interface ComposeOptions {
   sigil: ArtBlock;
@@ -127,6 +156,6 @@ export function composeBanner(
   }
 
   const truncated = raw.map((line) => sliceToWidth(line, cap));
-  const widest = truncated.reduce((max, line) => Math.max(max, lengthOf(line)), 0);
-  return { lines: truncated.map((line) => padToWidth(line, widest)), sideBySide };
+  const widestLine = truncated.reduce((max, line) => Math.max(max, lengthOf(line)), 0);
+  return { lines: truncated.map((line) => padToWidth(line, widestLine)), sideBySide };
 }

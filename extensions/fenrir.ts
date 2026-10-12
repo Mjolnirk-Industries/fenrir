@@ -18,14 +18,90 @@ import { HeaderOwner } from "../lib/header-owner.ts";
 import type { HeaderComponent, HeaderOwnerDeps } from "../lib/header-owner.ts";
 import { buildPanelLines } from "../lib/panel.ts";
 import type { PanelStyle } from "../lib/panel.ts";
-import { composeBanner, FENRIR_WORDMARK, WOLF_SIGIL } from "../lib/sigil.ts";
-import { FENRIR_PALETTE, paint, paintArtLine } from "../lib/style.ts";
+import {
+  assertZoneMapAligned,
+  composeBanner,
+  parseArtBlock,
+  parseZoneMap,
+} from "../lib/sigil.ts";
+import type { ArtBlock, ZoneMap } from "../lib/sigil.ts";
+import { FENRIR_PALETTE, paint, paintZonedArt } from "../lib/style.ts";
+import type { ZoneLetter } from "../lib/style.ts";
 
 const PANEL_STYLE: PanelStyle = {
-  label: (text) => paint(text, FENRIR_PALETTE.label),
-  value: (text) => paint(text, FENRIR_PALETTE.value),
-  accent: (text) => paint(text, FENRIR_PALETTE.accent),
+  label: (text) => paint(text, FENRIR_PALETTE.A),
+  value: (text) => paint(text, FENRIR_PALETTE.B),
+  accent: (text) => paint(text, FENRIR_PALETTE.E),
 };
+
+// The wordmark ships without a zone file: it is painted one color. Zone `B`
+// (ash) keeps the name bright and legible and does not compete with the eye's
+// wolf orange.
+const WORDMARK_ZONE: ZoneLetter = "B";
+
+const ART_URLS = {
+  sigil: new URL("../art/sigil.txt", import.meta.url),
+  zones: new URL("../art/sigil.zones.txt", import.meta.url),
+  wordmark: new URL("../art/wordmark.txt", import.meta.url),
+} as const;
+
+interface BannerArt {
+  sigil: ArtBlock;
+  wordmark: ArtBlock;
+  /** The sigil's zone grid as plain lines, padded to the sigil width. */
+  sigilZones: ArtBlock;
+  /** The wordmark's single-color zone grid, generated at load. */
+  wordmarkZones: ArtBlock;
+}
+
+function padZoneRow(row: string, width: number): string {
+  const current = Array.from(row).length;
+  return current >= width ? row : row + ".".repeat(width - current);
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Read and parse the three delivered art files once per session. Throws on any
+ * read, parse, or alignment failure; the caller turns that into a single
+ * notification and leaves Pi's built-in header in place.
+ */
+async function loadBannerArt(): Promise<BannerArt> {
+  const [sigilText, zoneText, wordmarkText] = await Promise.all([
+    readFile(ART_URLS.sigil, "utf8"),
+    readFile(ART_URLS.zones, "utf8"),
+    readFile(ART_URLS.wordmark, "utf8"),
+  ]);
+
+  const sigil = parseArtBlock(sigilText);
+  const zones: ZoneMap = parseZoneMap(zoneText);
+  assertZoneMapAligned(sigil, zones);
+  const wordmark = parseArtBlock(wordmarkText);
+
+  // A zone row narrower than the art is legal and reads as unpainted; pad it
+  // with `.` so the composed zone grid lines up with the composed art grid.
+  const sigilZones: ArtBlock = {
+    lines: zones.rows.map((row) => padZoneRow(row, sigil.width)),
+    width: sigil.width,
+    height: zones.height,
+  };
+
+  // Publish a zone grid for the wordmark so the whole composed banner can be
+  // painted in one paintZonedArt pass. Spaces stay `.`, so they stay unpainted.
+  const wordmarkZones: ArtBlock = {
+    lines: wordmark.lines.map((line) =>
+      Array.from(line)
+        .map((ch) => (ch === " " ? "." : WORDMARK_ZONE))
+        .join(""),
+    ),
+    width: wordmark.width,
+    height: wordmark.height,
+  };
+
+  return { sigil, wordmark, sigilZones, wordmarkZones };
+}
 
 function execFileAsync(
   file: string,
@@ -76,6 +152,20 @@ export default function fenrirExtension(pi: ExtensionAPI): void {
 
     // A reload/new/fork fires session_shutdown first, but be defensive.
     runTeardown();
+
+    // Read the delivered art once. A read, parse, or alignment failure means we
+    // install nothing at all: notify once and leave Pi's built-in header.
+    let art: BannerArt;
+    try {
+      art = await loadBannerArt();
+    } catch (error) {
+      try {
+        ctx.ui.notify(`Fenrir header not installed: ${describeError(error)}`, "warning");
+      } catch {
+        // A notification failure must never escape the lifecycle handler.
+      }
+      return;
+    }
 
     const host = await import("@earendil-works/pi-coding-agent").catch(() => null);
     if (host === null) return;
@@ -151,12 +241,23 @@ export default function fenrirExtension(pi: ExtensionAPI): void {
       return {
         render(width: number): string[] {
           if (animFrozen && cacheOut !== null && cacheWidth === width) return cacheOut;
-          const banner = composeBanner({ sigil: WOLF_SIGIL, wordmark: FENRIR_WORDMARK, width });
-          const art = animFrozen
+          const banner = composeBanner({ sigil: art.sigil, wordmark: art.wordmark, width });
+          // Compose the zone grid with the same layout so it stays aligned
+          // column for column; the wordmark contributes its generated grid.
+          const zoneBanner = composeBanner({
+            sigil: art.sigilZones,
+            wordmark: art.wordmarkZones,
+            width,
+          });
+          const revealed = animFrozen
             ? banner.lines
             : revealRows(banner.lines, revealFraction(animTick, DEFAULT_ANIM_PLAN));
           const panelLines = panelData === null ? [] : buildPanelLines(panelData, width, PANEL_STYLE);
-          const lines = [...art.map((line) => paintArtLine(line)), "", ...panelLines];
+          const lines = [
+            ...paintZonedArt(revealed, zoneBanner.lines, { dimmed: !animFrozen }),
+            "",
+            ...panelLines,
+          ];
           if (animFrozen) {
             cacheOut = lines;
             cacheWidth = width;
