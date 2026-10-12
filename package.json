@@ -22,6 +22,7 @@
   "files": [
     "extensions",
     "lib",
+    "themes/",
     "docs",
     "README.md",
     "LICENSE"
@@ -32,6 +33,9 @@
   "pi": {
     "extensions": [
       "./extensions/fenrir.ts"
+    ],
+    "themes": [
+      "./themes"
     ]
   },
   "peerDependencies": {
